@@ -1,0 +1,67 @@
+name: Deploy Website to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Kiểm tra hợp lệ (Check)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Kiểm tra đủ 3 file bắt buộc
+        run: |
+          echo "=== KIỂM TRA CÁC FILE BẮT BUỘC ==="
+          for file in index.html style.css script.js; do
+            if [ ! -f "$file" ]; then
+              echo "❌ Lỗi: Thiếu file $file!"
+              exit 1
+            fi
+            echo "✅ Đã tìm thấy: $file"
+          done
+
+      - name: Kiểm tra thẻ <title> trong index.html
+        run: |
+          echo "=== KIỂM TRA THẺ <title> ==="
+          if ! grep -qi "<title>" index.html; then
+            echo "❌ Lỗi: index.html không chứa thẻ <title>!"
+            exit 1
+          fi
+          echo "✅ index.html có chứa thẻ <title> hợp lệ."
+
+  deploy:
+    name: Triển khai GitHub Pages (Deploy)
+    needs: check
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
